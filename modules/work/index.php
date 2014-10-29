@@ -593,11 +593,6 @@ function submit_work($id, $on_behalf_of = null) {
     }
 }
 
- function auto_judge($lang,$content){
-         
-        
- }
-
 //  assignment - prof view only
 function new_assignment() {
     global $tool_content, $m, $langAdd, $course_code, $course_id;
