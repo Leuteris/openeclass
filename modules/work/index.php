@@ -338,14 +338,15 @@ function add_assignment() {
     $auto_judge_PHP = filter_input(INPUT_POST, 'auto_judge_PHP', FILTER_VALIDATE_INT);
     $auto_judge_PYTHON = filter_input(INPUT_POST, 'auto_judge_PYTHON', FILTER_VALIDATE_INT);
     $auto_judge_RUBY = filter_input(INPUT_POST, 'auto_judge_RUBY', FILTER_VALIDATE_INT);
+    $auto_judge = filter_input(INPUT_POST, 'auto_judge', FILTER_VALIDATE_INT);
     $secret = uniqid('');
 
     if ($assign_to_specific == 1 && empty($assigned_to)) {
         $assign_to_specific = 0;
     }
     if (@mkdir("$workPath/$secret", 0777) && @mkdir("$workPath/admin_files/$secret", 0777, true)) {       
-        $id = Database::get()->query("INSERT INTO assignment (course_id, title, description, deadline, late_submission, comments, submission_date, secret_directory, group_submissions, max_grade, assign_to_specific, auto_judge_C, auto_judge_CPP, auto_judge_CPP11, auto_judge_CLOJURE, auto_judge_CSHARP, auto_judge_JAVA, auto_judge_JAVASCRIPT, auto_judge_HASKELL, auto_judge_PERL, auto_judge_PHP, auto_judge_PYTHON, auto_judge_RUBY) "
-                . "VALUES (?d, ?s, ?s, ?t, ?d, ?s, ?t, ?s, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d)", $course_id, $title, $desc, $deadline, $late_submission, '', date("Y-m-d H:i:s"), $secret, $group_submissions, $max_grade, $assign_to_specific, $auto_judge_C, $auto_judge_CPP, $auto_judge_CPP11, $auto_judge_CLOJURE, $auto_judge_CSHARP, $auto_judge_JAVA, $auto_judge_JAVASCRIPT, $auto_judge_HASKELL, $auto_judge_PERL, $auto_judge_PHP, $auto_judge_PYTHON, $auto_judge_RUBY)->lastInsertID;
+        $id = Database::get()->query("INSERT INTO assignment (course_id, title, description, deadline, late_submission, comments, submission_date, secret_directory, group_submissions, max_grade, assign_to_specific, auto_judge_C, auto_judge_CPP, auto_judge_CPP11, auto_judge_CLOJURE, auto_judge_CSHARP, auto_judge_JAVA, auto_judge_JAVASCRIPT, auto_judge_HASKELL, auto_judge_PERL, auto_judge_PHP, auto_judge_PYTHON, auto_judge_RUBY, auto_judge) "
+                . "VALUES (?d, ?s, ?s, ?t, ?d, ?s, ?t, ?s, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d, ?d)", $course_id, $title, $desc, $deadline, $late_submission, '', date("Y-m-d H:i:s"), $secret, $group_submissions, $max_grade, $assign_to_specific, $auto_judge_C, $auto_judge_CPP, $auto_judge_CPP11, $auto_judge_CLOJURE, $auto_judge_CSHARP, $auto_judge_JAVA, $auto_judge_JAVASCRIPT, $auto_judge_HASKELL, $auto_judge_PERL, $auto_judge_PHP, $auto_judge_PYTHON, $auto_judge_RUBY, $auto_judge)->lastInsertID;
         
         $secret = work_secret($id);
         if ($id) {
@@ -434,24 +435,25 @@ function submit_work($id, $on_behalf_of = null) {
         }
     } //checks for submission validity end here
     
-    $row = Database::get()->querySingle("SELECT title, group_submissions, auto_judge_C, auto_judge_CPP, auto_judge_CPP11, auto_judge_CLOJURE, auto_judge_CSHARP, auto_judge_JAVA, auto_judge_JAVASCRIPT, auto_judge_HASKELL, auto_judge_PERL, auto_judge_PHP, auto_judge_PYTHON, auto_judge_RUBY FROM assignment WHERE course_id = ?d AND id = ?d", $course_id, $id);
+    $row = Database::get()->querySingle("SELECT title, group_submissions, auto_judge_C, auto_judge_CPP, auto_judge_CPP11, auto_judge_CLOJURE, auto_judge_CSHARP, auto_judge_JAVA, auto_judge_JAVASCRIPT, auto_judge_HASKELL, auto_judge_PERL, auto_judge_PHP, auto_judge_PYTHON, auto_judge_RUBY, auto_judge FROM assignment WHERE course_id = ?d AND id = ?d", $course_id, $id);
     
     $title = q($row->title);
     $group_sub = $row->group_submissions;
-  
-    $auto_judge = array(
-    "C" => $row->auto_judge_C,
-    "CPP" => $row->auto_judge_CPP,
-    "CPP11" => $row->auto_judge_CPP11,
-    "CLOJURE" => $row->auto_judge_CLOJURE,
-    "CSHARP" => $row->auto_judge_CSHARP,
-    "JAVA" => $row->auto_judge_JAVA,
-    "JAVASCRIPT" => $row->auto_judge_JAVASCRIPT,
-    "HASKELL" => $row->auto_judge_HASKELL,
-    "PHP" => $row->auto_judge_PHP,
-    "PERL" => $row->auto_judge_PERL,
-    "PYTHON" => $row->auto_judge_PYTHON,
-    "RUBY" => $row->auto_judge_RUBY,
+    
+    $auto_judge = $row->auto_judge;
+    $auto_judge_lang = array(
+    "c" => array($row->auto_judge_C, 'C'), 
+    "cpp" => array($row->auto_judge_CPP,'CPP'), 
+    "cpp11" =>array($row->auto_judge_CPP11,'CPP11'), 
+    "clj" => array($row->auto_judge_CLOJURE,'CLOJURE'), 
+    "sc" => array($row->auto_judge_CSHARP,'CSHARP'), 
+    "java" => array($row->auto_judge_JAVA,'JAVA'), 
+    "js" => array($row->auto_judge_JAVASCRIPT,'JAVASCRIPT'), 
+    "hs" => array($row->auto_judge_HASKELL,'HASKELL'), 
+    "php" => array($row->auto_judge_PHP,'PHP'), 
+    "pl" => array($row->auto_judge_PERL,'PERL'), 
+    "py" => array($row->auto_judge_PYTHON,'PYTHON'), 
+    "rb" => array($row->auto_judge_RUBY,'RUBY')
 );
     
     $nav[] = $works_url;
@@ -554,39 +556,41 @@ function submit_work($id, $on_behalf_of = null) {
         }
         
         $content = file_get_contents("$workPath/$filename");
+        //file exetension
+        $extension =  pathinfo("$workPath/$filename", PATHINFO_EXTENSION); 
         global $hackerEarthKey;
-         //set POST variables
         $url = 'http://api.hackerearth.com/code/run/';
-        
-        foreach ($auto_judge as $key => $value)
-        {
-          if($value){
-       
-             $fields = array('client_secret' => $hackerEarthKey, 'source' => urlencode($content), 'lang' => $key);
-             //url-ify the data for the POST
-             $fields_string = null;
-             foreach($fields as $key=>$value) { $fields_string .= $key.'='.$value.'&'; }
-             rtrim($fields_string, '&');
-
-             //open connection
-             $ch = curl_init();
-             //set the url, number of POST vars, POST data
-             curl_setopt($ch,CURLOPT_URL, $url);   
-             curl_setopt($ch,CURLOPT_POST, count($fields));
-             curl_setopt($ch,CURLOPT_POSTFIELDS, $fields_string);
-             curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
-             //execute post
-             $result = curl_exec($ch);
-             $result = json_decode($result, true);
-         
-             $output = isset($result['run_status']['output'])?trim($result['run_status']['output']):trim($result['compile_status']);
-             submit_grade_comments($id, $sid, 10, 'Output: '.$output, false);
-                  
-              }
-              
-             // End Auto-judge
-        }
     
+        if($auto_judge){
+                 // an h katalixi ypostirizite kai einai energh
+                if(array_key_exists ( $extension ,$auto_judge_lang ) && $auto_judge_lang[$extension][0]){
+                     $fields = array('client_secret' => $hackerEarthKey, 'source' => urlencode($content), 'lang' => $auto_judge_lang[$extension][1]);
+                     //url-ify the data for the POST
+                     $fields_string = null;
+                     foreach($fields as $key=>$value) { $fields_string .= $key.'='.$value.'&'; }
+                     rtrim($fields_string, '&');
+
+                     //open connection
+                     $ch = curl_init();
+                     //set the url, number of POST vars, POST data
+                     curl_setopt($ch,CURLOPT_URL, $url);   
+                     curl_setopt($ch,CURLOPT_POST, count($fields));
+                     curl_setopt($ch,CURLOPT_POSTFIELDS, $fields_string);
+                     curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
+                     //execute post
+                     $result = curl_exec($ch);
+                     $result = json_decode($result, true);
+
+                     $output = isset($result['run_status']['output'])?trim($result['run_status']['output']):trim($result['compile_status']);
+                     submit_grade_comments($id, $sid, 10, 'Output: '.$output, false);
+                    }
+                    else
+                    {
+                      $output = 'Ο αυτόματος κριτής δεν είναι ενεργοποιημένος για αρχεία με κατάληξη .'.$extension;
+                        submit_grade_comments($id, $sid, 0, 'Προειδοποίηση: '.$output, false);
+                    }
+        }
+             // End Auto-judge
         
     } else { // not submit_ok
         $tool_content .="<p class='caution'>$langExerciseNotPermit<br /><a href='$_SERVER[SCRIPT_NAME]?course=$course_code'>$langBack</a></p></br>";
@@ -651,29 +655,31 @@ function new_assignment() {
           <th>Auto-judge:</th>
           
           <td>
-            <input type='checkbox' id='auto_judge_C' name='auto_judge_C' value='1' />
+            <input type='checkbox' id='auto_judge' name='auto_judge' value='1' />
+            <label for='auto_judge'>Ενεργό για τις γλώσσες:</label></br>
+            <input type='checkbox' id='auto_judge_C' name='auto_judge_C' checked='1' value='1' />
             <label for='auto_judge_C'>C</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_CPP' name='auto_judge_CPP' value='1' />
+            <input type='checkbox' id='auto_judge_CPP' name='auto_judge_CPP' checked='1'value='1' />
             <label for='auto_judge_CPP'>C++</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_CPP11' name='auto_judge_CPP11' value='1' />
+            <input type='checkbox' id='auto_judge_CPP11' name='auto_judge_CPP11' checked='1' value='1' />
             <label for='auto_judge_CPP11'>C++11</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_CLOJURE' name='auto_judge_CLOJURE' value='1' />
+            <input type='checkbox' id='auto_judge_CLOJURE' name='auto_judge_CLOJURE' checked='1' value='1' />
             <label for='auto_judge_CLOJURE'>Clojure</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_CSHARP' name='auto_judge_CSHARP' value='1'  />
+            <input type='checkbox' id='auto_judge_CSHARP' name='auto_judge_CSHARP' checked='1' value='1'  />
             <label for='auto_judge_CSHARP'>C#</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_JAVA' name='auto_judge_JAVA' value='1'  />
+            <input type='checkbox' id='auto_judge_JAVA' name='auto_judge_JAVA' checked='1' value='1'  />
             <label for='auto_judge_JAVA'>Java</label>&nbsp;</br>
-            <input type='checkbox' id='auto_judge_JAVASCRIPT' name='auto_judge_JAVASCRIPT' value='1' />
+            <input type='checkbox' id='auto_judge_JAVASCRIPT' name='auto_judge_JAVASCRIPT' checked='1' value='1' />
             <label for='auto_judge_JAVASCRIPT'>JavaScript</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_HASKELL' name='auto_judge_HASKELL' value='1'  />
+            <input type='checkbox' id='auto_judge_HASKELL' name='auto_judge_HASKELL' checked='1' value='1'  />
             <label for='auto_judge_HASKELL'>Haskell</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_PERL' name='auto_judge_PERL' value='1'  />
+            <input type='checkbox' id='auto_judge_PERL' name='auto_judge_PERL' checked='1' value='1'  />
             <label for='auto_judge_PERL'>Perl</label>&nbsp;&nbsp;
-            <input type='checkbox' id='auto_judge_PHP' name='auto_judge_PHP' value='1' />
+            <input type='checkbox' id='auto_judge_PHP' name='auto_judge_PHP' checked='1' value='1' />
             <label for='auto_judge_PHP'>PHP</label>&nbsp;
-            <input type='checkbox' id='auto_judge_PYTHON' name='auto_judge_PYTHON' value='1' />
+            <input type='checkbox' id='auto_judge_PYTHON' name='auto_judge_PYTHON' checked='1' value='1' />
             <label for='auto_judge_PYTHON'>Python</label>&nbsp;
-            <input type='checkbox' id='auto_judge_RUBY' name='auto_judge_RUBY' value='1' />
+            <input type='checkbox' id='auto_judge_RUBY' name='auto_judge_RUBY' checked='1'value='1' />
             <label for='auto_judge_RUBY'>Ruby</label>&nbsp;&nbsp;
           </td>
         </tr>
