@@ -1,7 +1,7 @@
 <?php
 /* ========================================================
  * Open eClass 3.0 configuration file
- * Created by install on 2014-10-21 09:46
+ * Created by install on 2014-11-06 23:58
  * ======================================================== */
 
 $mysqlServer = 'localhost';
